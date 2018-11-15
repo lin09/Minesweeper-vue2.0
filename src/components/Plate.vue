@@ -242,7 +242,7 @@ export default {
     },
 
     // 成功踩格
-    handleTread (data) {
+    handleTread () {
       // 累计踩开数
       this.treadNum ++
       // 踩开数 + 标记数 + 剩余雷数 = 格子数
