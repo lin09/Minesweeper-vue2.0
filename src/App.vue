@@ -22,6 +22,7 @@ export default {
 }
 
 #app {
+  padding: 50px;
   max-width: 100vw;
 }
 </style>

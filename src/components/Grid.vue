@@ -1,9 +1,24 @@
 <template>
   <div class="grid">
-    <samp v-if="data.isProbe && data.isReal" :class="data.isTread ? 'probe tread' : 'probe'">雷</samp>
-    <samp v-if="data.isProbe && !data.isReal" class="probe">{{ data.num ? data.num : '' }}</samp>
-    <samp v-if="!data.isProbe && data.isMark" class="no-probe mark" @mouseup="handleMark">标</samp>
-    <samp v-if="!data.isProbe && !data.isMark" class="no-probe" @mouseup="handleMark" @click="handleProbe"></samp>
+    <samp v-if="data.isProbe && data.isReal"
+      :class="data.isTread ? 'probe tread' : 'probe'">雷</samp>
+
+    <samp v-if="data.isProbe && !data.isReal && data.num"
+      class="probe"
+      @mousedown="handleMousedown"
+      @mouseup="handleMouseup"
+      @mouseleave="handleMouseleave" >{{ data.num }}</samp>
+
+    <samp v-if="data.isProbe && !data.isReal && !data.num" class="probe"></samp>
+
+    <samp v-if="!data.isProbe && data.isMark"
+      class="no-probe mark"
+      @mouseup="handleMark">标</samp>
+
+    <samp v-if="!data.isProbe && !data.isMark"
+      :class="data.isActive ? 'no-probe active' : 'no-probe'"
+      @mouseup="handleMark"
+      @click="handleProbe"></samp>
   </div>
 </template>
 
@@ -31,9 +46,23 @@ export default {
           isTread: false,
           // 周围雷数
           num: 0,
+          // 周围格左右键同时按下状态
+          isActive: false
         }
       }
     },
+  },
+  data: () => {
+    return {
+      // 按住左键
+      isHoleDownLeft: false,
+      // 按住右键
+      isHoleDownRight: false,
+      // 同时按住左右键
+      isHoleDownLeftAndRight: false,
+      // 非同时松开时，0.5秒后同时按住状态失效
+      timeout: () => {}
+    }
   },
   methods: {
     handleMark (event) {
@@ -43,10 +72,71 @@ export default {
         this.$emit('handleMark', this.data)
       }
     },
+
+    // 踩开
     handleProbe () {
-      // 踩开
-      this.data.isTread = this.data.isReal
       this.$emit('handleProbe', this.data)
+    },
+
+    // 数字格按住左右键事件
+    handleMousedown (event) {
+      clearTimeout(this.timeout)
+      if (event && event.which === 1) {
+        // 按住左键
+        this.isHoleDownLeft = true
+      } else if (event && event.which === 3) {
+        // 按住右键
+        this.isHoleDownRight = true
+      }
+      // 同时按住左右键
+      if (this.isHoleDownLeft && this.isHoleDownRight) {
+        this.isHoleDownLeftAndRight = true
+        // 变更周围的格样式
+        this.$emit('handleActive', this.data, true)
+      }
+    },
+
+    // 数字格松开左右键事件
+    handleMouseup (event) {
+      // 停止按住状态失效监控
+      clearTimeout(this.timeout)
+      // 变更周围的格样式
+      this.$emit('handleActive', this.data, false)
+
+      if (event && event.which === 1) {
+        // 松开左键
+        this.isHoleDownLeft = false
+      } else if (event && event.which === 3) {
+        // 松开右键
+        this.isHoleDownRight = false
+      }
+
+      // 非同时松开时，0.5秒后同时按住状态失效
+      if (this.isHoleDownLeftAndRight) {
+        this.timeout = setTimeout(() => {
+          this.isHoleDownLeftAndRight = false
+        }, 500)
+      }
+
+      // 同时松开
+      if (this.isHoleDownLeftAndRight && !this.isHoleDownLeft && !this.isHoleDownRight) {
+        // 停止按住状态失效监控
+        clearTimeout(this.timeout)
+        this.isHoleDownLeftAndRight = false
+        // 变更周围的格样式
+        this.$emit('handleMouseup', this.data)
+      }
+    },
+
+    // 移开失效
+    handleMouseleave () {
+      if (!this.isHoleDownLeftAndRight) {
+        return
+      }
+
+      this.isHoleDownLeftAndRight = false
+      // 变更周围的格样式
+      this.$emit('handleActive', this.data, false)
     }
   }
 }
@@ -74,6 +164,7 @@ export default {
       background-color: #FFF2E2;
     }
 
+    &.active,
     &:active {
       background-color: #FDE6E0;
     }

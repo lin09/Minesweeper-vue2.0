@@ -8,7 +8,12 @@
     </div>
     <div class="container">
       <div v-for="r in data.gridRow" :key="r" class="row">
-        <Grid v-for="c in data.gridCol" :key="`${ r }-${ c }`" :data="gridData[`${ r }-${ c }`]" @handleMark="handleMark" @handleProbe="handleProbe" />
+        <Grid v-for="c in data.gridCol" :key="`${ r }-${ c }`"
+          :data="gridData[`${ r }-${ c }`]"
+          @handleMark="handleMark"
+          @handleProbe="handleProbe"
+          @handleActive="handleActive"
+          @handleMouseup="handleMouseup" />
       </div>
     </div>
   </div>
@@ -76,6 +81,12 @@ export default {
       this.treadNum = 0
       this.markNum = 0
       this.handleGridData()
+      // 队列数据
+      this.probe.queue = { items: {}, indexs: [] }
+      // 队列处理中
+      this.probe.processing = false
+      // 队列中已处理的数量
+      this.probe.treadNum = 0
 
       // 重置时间
       this.second = 0
@@ -108,13 +119,15 @@ export default {
       for (let r = 1; r <= this.data.gridRow; r ++) {
         for (let c = 1; c <= this.data.gridCol; c ++) {
           let index = `${ r }-${ c }`
-          gridData[index] = {
+          let item = {
             // 下标
             index,
             // 行
             row: r,
             // 列
             col: c,
+            // 周围下标
+            surrounding: [],
             // 是否踩开
             isProbe: false,
             // 是否雷
@@ -125,7 +138,14 @@ export default {
             isTread: false,
             // 周围雷数
             num: 0,
+            // 周围格左右键同时按下状态
+            isActive: false
           }
+          this.handleSurrounding(item, (ind) => {
+            // 添加周围下标
+            item.surrounding.push(ind)
+          })
+          gridData[index] = item
         }
       }
 
@@ -138,55 +158,12 @@ export default {
         // 组装下标
         let index = `${ row }-${ col }`
         // 过滤已经放雷
-        if (!gridData[index].isReal) {
+        let item = gridData[index]
+        if (!item.isReal) {
           // 设置为雷
-          gridData[index].isReal = true
-
-          // 计算周围雷数
-          // 上
-          let top = row - 1
-          let tHave = !!(top > 0)
-          // 右
-          let right = col + 1
-          let rHave = !!(right <= this.data.gridCol)
-          // 下
-          let bottom = row + 1
-          let bHave = !!(bottom <= this.data.gridRow)
-          // 左
-          let left = col - 1
-          let lHave = !!(left > 0)
-
-          // 上
-          if (tHave) {
-            gridData[`${ top }-${ col }`].num ++
-          }
-          // 右上
-          if (tHave && rHave) {
-            gridData[`${ top }-${ right }`].num ++
-          }
-          // 右
-          if (rHave) {
-            gridData[`${ row }-${ right }`].num ++
-          }
-          // 右下
-          if (rHave && bHave) {
-            gridData[`${ bottom }-${ right }`].num ++
-          }
-          // 下
-          if (bHave) {
-            gridData[`${ bottom }-${ col }`].num ++
-          }
-          // 左下
-          if (lHave && bHave) {
-            gridData[`${ bottom }-${ left }`].num ++
-          }
-          // 左
-          if (lHave) {
-            gridData[`${ row }-${ left }`].num ++
-          }
-          // 左上
-          if (lHave && tHave) {
-            gridData[`${ top }-${ left }`].num ++
+          item.isReal = true
+          for (let ind in item.surrounding) {
+            gridData[item.surrounding[ind]].num ++
           }
 
           // 放下一个雷
@@ -195,6 +172,58 @@ export default {
       }
 
       this.gridData = gridData
+    },
+
+    // 查找周围
+    handleSurrounding (data, callBack) {
+      let row = data.row
+      let col = data.col
+
+      // 上
+      let top = row - 1
+      let tHave = !!(top > 0)
+      // 右
+      let right = col + 1
+      let rHave = !!(right <= this.data.gridCol)
+      // 下
+      let bottom = row + 1
+      let bHave = !!(bottom <= this.data.gridRow)
+      // 左
+      let left = col - 1
+      let lHave = !!(left > 0)
+
+      // 上
+      if (tHave) {
+        callBack(`${ top }-${ col }`)
+      }
+      // 右上
+      if (tHave && rHave) {
+        callBack(`${ top }-${ right }`)
+      }
+      // 右
+      if (rHave) {
+        callBack(`${ row }-${ right }`)
+      }
+      // 右下
+      if (rHave && bHave) {
+        callBack(`${ bottom }-${ right }`)
+      }
+      // 下
+      if (bHave) {
+        callBack(`${ bottom }-${ col }`)
+      }
+      // 左下
+      if (lHave && bHave) {
+        callBack(`${ bottom }-${ left }`)
+      }
+      // 左
+      if (lHave) {
+        callBack(`${ row }-${ left }`)
+      }
+      // 左上
+      if (lHave && tHave) {
+        callBack(`${ top }-${ left }`)
+      }
     },
 
     // 随机数
@@ -241,10 +270,8 @@ export default {
       }
     },
 
-    // 成功踩格
-    handleTread () {
-      // 累计踩开数
-      this.treadNum ++
+    // 结算
+    settlement () {
       // 踩开数 + 标记数 + 剩余雷数 = 格子数
       if (this.treadNum + this.markNum + this.sweeperNum === this.data.gridRow * this.data.gridCol) {
         // 成功
@@ -253,79 +280,74 @@ export default {
     },
 
     // 踩格
-    probe (data) {
+    probe () {
+      // 正在处理中
+      if (this.probe.processing) {
+        return
+      }
+      this.probe.processing = true
+
+      // 结算
+      if (this.probe.queue.indexs.length <= 0) {
+        // 累计踩开数
+        this.treadNum += this.probe.treadNum
+        this.probe.treadNum = 0
+        this.settlement()
+        this.probe.processing = false
+        return
+      }
+
+      // 处理队列第一个格
+      let index = this.probe.queue.indexs.shift()
+      let data = this.probe.queue.items[index]
+
       if (!data.isProbe) {
         data.isProbe = true
-        this.handleTread(data)
+        // 累计处理数量
+        this.probe.treadNum ++
 
-        // 周围雷数为0，自动踩开周围
-        if (data.num === 0) {
-          this.handleZeroGrid(data)
+        // 处理周围的格
+        for (let i in data.surrounding) {
+          let item = this.gridData[data.surrounding[i]]
+          let surroundingIndex = item.surrounding.indexOf(data.index)
+          if (surroundingIndex > -1) {
+            // 去掉周围格的记录
+            item.surrounding.splice(surroundingIndex, 1)
+          }
+          if (!item.isProbe && data.num === 0) {
+            // 雷数为0时，自动开周围的格
+            this.AddProbeQueue(item)
+          }
         }
       }
+
+      // 删除当前处理格
+      delete this.probe.queue.items[index]
+      // 处理完成
+      this.probe.processing = false
+      // 下一个格
+      this.probe()
     },
+    // 添加到队列
+    AddProbeQueue (data) {
+      if (data.isReal) {
+        data.isTread = true
+        // 踩雷结束
+        this.gameOver()
+      }
 
-    // 踩开周围
-    handleZeroGrid (data) {
-      let row = data.row
-      let col = data.col
-
-      // 上
-      let top = row - 1
-      let tHave = !!(top > 0)
-      // 右
-      let right = col + 1
-      let rHave = !!(right <= this.data.gridCol)
-      // 下
-      let bottom = row + 1
-      let bHave = !!(bottom <= this.data.gridRow)
-      // 左
-      let left = col - 1
-      let lHave = !!(left > 0)
-
-      // 上
-      if (tHave) {
-        this.probe(this.gridData[`${ top }-${ col }`])
-      }
-      // 右上
-      if (tHave && rHave) {
-        this.probe(this.gridData[`${ top }-${ right }`])
-      }
-      // 右
-      if (rHave) {
-        this.probe(this.gridData[`${ row }-${ right }`])
-      }
-      // 右下
-      if (rHave && bHave) {
-        this.probe(this.gridData[`${ bottom }-${ right }`])
-      }
-      // 下
-      if (bHave) {
-        this.probe(this.gridData[`${ bottom }-${ col }`])
-      }
-      // 左下
-      if (lHave && bHave) {
-        this.probe(this.gridData[`${ bottom }-${ left }`])
-      }
-      // 左
-      if (lHave) {
-        this.probe(this.gridData[`${ row }-${ left }`])
-      }
-      // 左上
-      if (lHave && tHave) {
-        this.probe(this.gridData[`${ top }-${ left }`])
+      if (!data.isProbe && this.probe.queue.indexs.indexOf(data.index) === -1) {
+        this.probe.queue.items[data.index] = data
+        this.probe.queue.indexs.push(data.index)
+        !this.probe.processing && this.probe()
       }
     },
 
     // 踩开一格
     handleProbe (data) {
-      this.gridData[data.index] = data
-      if (data.isTread) {
-        // 踩雷结束
-        this.gameOver()
-      } else {
-        this.probe(this.gridData[data.index])
-      }
+      let item = this.gridData[data.index]
+      item = data
+      this.AddProbeQueue(item)
     },
 
     // 标记
@@ -339,6 +361,41 @@ export default {
         this.sweeperNum ++
         this.markNum --
       }
+    },
+
+    // 同时按住左右键
+    handleActive (data, active) {
+      for (let i in data.surrounding) {
+        let item = this.gridData[data.surrounding[i]]
+        if (!item.isProbe) {
+          // 变更周围的格样式
+          item.isActive = active
+        }
+      }
+    },
+
+    // 同时按住左右键同时松开
+    handleMouseup (data) {
+      // 累计周围棋标数
+      let markNum = 0
+
+      for (let i in data.surrounding) {
+        let item = this.gridData[data.surrounding[i]]
+        if (!item.isProbe && item.isMark) {
+          markNum ++
+        }
+      }
+
+      // 周围棋标数等于当前格雷数，自动踩开周围无标格
+      if (markNum === data.num) {
+        for (let i in data.surrounding) {
+        let item = this.gridData[data.surrounding[i]]
+        if (!item.isProbe && !item.isMark) {
+          // 添到队列
+          this.AddProbeQueue(item)
+        }
+      }
+      }
     }
   }
 }
@@ -348,7 +405,8 @@ export default {
 .plate {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  max-width: 100%;
 }
 
 .info {

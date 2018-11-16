@@ -9,9 +9,9 @@
     </div>
     <div class="grid-num">
       <div>雷区大小：</div>
-      <input type="number" v-model="gridRow" :disabled="grade !== 3 ? true : false" @blur="handleGridRow">
-      <div class="x">x</div>
       <input type="number" v-model="gridCol" :disabled="grade !== 3 ? true : false" @blur="handleGridCol">
+      <div class="x">x</div>
+      <input type="number" v-model="gridRow" :disabled="grade !== 3 ? true : false" @blur="handleGridRow">
     </div>
     <div class="sweeper-num">
       <div>地雷数量：</div>
@@ -43,18 +43,14 @@ export default {
       if (val > 1) {
         // 计算最大雷数
         this.maxSweeper = this.gridRow * this.gridCol - 1
-        if (this.sweeper * 1 > this.maxSweeper) {
-          this.sweeper = this.maxSweeper
-        }
+        this.handleSweeper()
       }
     },
     gridCol (val) {
       if (val > 1) {
         // 计算最大雷数
         this.maxSweeper = this.gridRow * this.gridCol - 1
-        if (this.sweeper * 1 > this.maxSweeper) {
-          this.sweeper = this.maxSweeper
-        }
+        this.handleSweeper()
       }
     },
   },
@@ -93,9 +89,10 @@ export default {
       }
     },
     handleSweeper () {
-      if (this.sweeper * 1 < 2) {
-        // 自定义雷数不能小于2
-        this.sweeper = 2
+      let min = Math.ceil(this.maxSweeper / 10)
+      if (this.sweeper * 1 < min) {
+        // 自定义雷数不能小于最大雷数5分1
+        this.sweeper = min
       } else if (this.sweeper * 1 > this.maxSweeper) {
         // 自定义雷数不能大于最大雷数
         this.sweeper = this.maxSweeper
