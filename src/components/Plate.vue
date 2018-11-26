@@ -266,7 +266,13 @@ export default {
 
       // 全部开
       for (let grid in this.gridData) {
-        this.gridData[grid].isProbe = true
+        let data = this.gridData[grid]
+        data.isProbe = true
+        if (data.isMark) {
+          // 开后去标记
+          data.isMark = false
+          this.handleMark(data)
+        }
       }
     },
 
@@ -303,6 +309,11 @@ export default {
 
       if (!data.isProbe) {
         data.isProbe = true
+        if (data.isMark) {
+          // 开后去标记
+          data.isMark = false
+          this.handleMark(data)
+        }
         // 累计处理数量
         this.probe.treadNum ++
 
