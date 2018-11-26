@@ -1,7 +1,7 @@
 <template>
   <div class="grid">
     <samp v-if="data.isProbe && data.isReal"
-      :class="data.isTread ? 'probe tread' : 'probe'">雷</samp>
+      :class="data.isTread ? 'probe tread' : 'probe'">💣</samp>
 
     <samp v-if="data.isProbe && !data.isReal && data.num"
       class="probe"
@@ -13,7 +13,7 @@
 
     <samp v-if="!data.isProbe && data.isMark"
       class="no-probe mark"
-      @mouseup="handleMark">标</samp>
+      @mouseup="handleMark">🚩</samp>
 
     <samp v-if="!data.isProbe && !data.isMark"
       :class="data.isActive ? 'no-probe active' : 'no-probe'"
