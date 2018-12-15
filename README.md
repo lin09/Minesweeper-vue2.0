@@ -1,3 +1,5 @@
+在线玩 [https://lin09.github.io/Minesweeper-vue2.0/dist/index.html](https://lin09.github.io/Minesweeper-vue2.0/dist/index.html)
+
 # 扫雷 vue2.0 版
 
 # project
